@@ -2,6 +2,7 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import axios from 'axios';
 
 const server = new McpServer({
   name: "demo-sse",
@@ -27,6 +28,38 @@ server.tool("exchange",
     }
   },
 );
+
+server.tool("healthMetrics",
+  'Get user health metrics from external API',
+  { userId: z.string() },
+  async ({ userId }) => {
+    try {
+      // Replace with your actual health metrics API endpoint
+      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/9F2BC220625C29D/20250401`);
+      const healthData = response.data;
+      
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Health Metrics for User ${userId}:\n` +
+                `Steps: ${healthData.steps}\n` +
+                `Heart Rate: ${healthData.heartRate} bpm\n` +
+                `Sleep: ${healthData.sleep} hours\n` +
+                `Calories: ${healthData.calories} kcal`
+        }]
+      }
+    } catch (error) {
+      console.error("Error fetching health metrics:", error);
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Unable to retrieve health metrics for user ${userId}. Please try again later.`
+        }]
+      }
+    }
+  },
+);
+
 const app = express();
 const sessions: Record<string, { transport: SSEServerTransport; response: express.Response }> = {}
 app.get("/sse", async (req: express.Request, res: express.Response) => {
