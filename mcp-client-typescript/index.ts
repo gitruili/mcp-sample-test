@@ -120,7 +120,7 @@ class MCPClient {
         }
         // 调用OpenAI API
         const completion = await this.openai.chat.completions.create({
-            model: "gpt-4-turbo-preview",
+            model: "gpt-4o-mini",
             messages,
             tools: availableTools,
             tool_choice: "auto"
@@ -166,7 +166,7 @@ class MCPClient {
                     });
                     // 获取下一个响应
                     const nextCompletion = await this.openai.chat.completions.create({
-                        model: "gpt-4-turbo-preview",
+                        model: "gpt-4o-mini",
                         messages,
                         tools: availableTools,
                         tool_choice: "auto"
