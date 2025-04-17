@@ -31,29 +31,64 @@ server.tool("exchange",
 
 server.tool("healthMetrics",
   'Get user health metrics from external API',
-  { userId: z.string() },
-  async ({ userId }) => {
+  { userId: z.string(), date: z.string().optional() },
+  async ({ userId, date = '20250401' }) => {
     try {
-      // Replace with your actual health metrics API endpoint
-      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/9F2BC220625C29D/20250401`);
-      const healthData = response.data;
+      console.log(`Fetching health data for device ${userId} on date ${date}`);
+      // Using the specific health metrics API endpoint
+      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/${userId}/${date}`);
+      const data = response.data;
+      
+      console.log("API Response received");
+      
+      let summaryText = `Health Metrics for Device ${userId} on ${date}:\n`;
+      
+      // Check if data has the time-series format
+      if (data && data.data) {
+        // Extract the last entry (most recent) to show current stats
+        const timeKeys = Object.keys(data.data);
+        if (timeKeys.length > 0) {
+          const lastTimeKey = timeKeys[timeKeys.length - 1];
+          const lastReading = data.data[lastTimeKey];
+          
+          // Add metrics to summary
+          summaryText += `Last reading time: ${lastTimeKey}\n`;
+          summaryText += `Heart Rate: ${lastReading.HR || 'N/A'} bpm\n`;
+          summaryText += `Motion: ${lastReading.motion || 'N/A'}\n`;
+          
+          if (lastReading.gcyy) {
+            summaryText += `GCYY: ${lastReading.gcyy || 'N/A'}\n`;
+          }
+          
+          if (lastReading.area_up) {
+            summaryText += `Area Up: ${lastReading.area_up || 'N/A'}\n`;
+          }
+          
+          if (lastReading.area_down) {
+            summaryText += `Area Down: ${lastReading.area_down || 'N/A'}\n`;
+          }
+        } else {
+          summaryText += "No time-series data available for this device/date.";
+        }
+      } else {
+        summaryText += "Data format not recognized.";
+      }
       
       return {
         content: [{ 
           type: "text", 
-          text: `Health Metrics for User ${userId}:\n` +
-                `Steps: ${healthData.steps}\n` +
-                `Heart Rate: ${healthData.heartRate} bpm\n` +
-                `Sleep: ${healthData.sleep} hours\n` +
-                `Calories: ${healthData.calories} kcal`
+          text: summaryText
         }]
       }
-    } catch (error) {
-      console.error("Error fetching health metrics:", error);
+    } catch (error: any) {
+      console.error("Error fetching health metrics:", error.message);
+      if (error.response) {
+        console.error("Response status:", error.response.status);
+      }
       return {
         content: [{ 
           type: "text", 
-          text: `Unable to retrieve health metrics for user ${userId}. Please try again later.`
+          text: `Unable to retrieve health metrics for device ${userId}. Error: ${error.message}`
         }]
       }
     }
