@@ -34,9 +34,22 @@ server.tool("healthMetrics",
   { userId: z.string(), date: z.string().optional() },
   async ({ userId, date = '20250401' }) => {
     try {
+      // Standardize date format to YYYYMMDD for API
+      let formattedDate = date;
+      
+      // Handle date formats like "2023-04-01"
+      if (date.includes('-')) {
+        formattedDate = date.replace(/-/g, '');
+      }
+      
+      // Format date for display (YYYY-MM-DD)
+      const displayDate = formattedDate.length === 8 
+        ? `${formattedDate.substring(0, 4)}-${formattedDate.substring(4, 6)}-${formattedDate.substring(6, 8)}`
+        : formattedDate;
+      
       // Set timeout to prevent long-running requests
       const response = await axios.get(
-        `http://43.138.239.43:8000/get_daily_data_by_device/${userId}/${date}`,
+        `http://43.138.239.43:8000/get_daily_data_by_device/${userId}/${formattedDate}`,
         { timeout: 5000 } // 5 second timeout
       );
       const healthData = response.data;
@@ -46,7 +59,7 @@ server.tool("healthMetrics",
         return {
           content: [{ 
             type: "text", 
-            text: `No health metrics found for user ${userId} on ${date}.`
+            text: `No health metrics found for user ${userId} on ${displayDate}.`
           }]
         }
       }
@@ -58,7 +71,7 @@ server.tool("healthMetrics",
         return {
           content: [{ 
             type: "text", 
-            text: `No health metrics found for user ${userId} on ${date}.`
+            text: `No health metrics found for user ${userId} on ${displayDate}.`
           }]
         }
       }
@@ -80,7 +93,7 @@ server.tool("healthMetrics",
       return {
         content: [{ 
           type: "text", 
-          text: `Health Summary for User ${userId} on ${date}:\n\n` +
+          text: `Health Summary for User ${userId} on ${displayDate}:\n\n` +
                 `Daily Averages:\n` +
                 `- Average Heart Rate: ${avgHeartRate.toFixed(1)} bpm (Min: ${minHeartRate.toFixed(1)}, Max: ${maxHeartRate.toFixed(1)})\n` +
                 `- Average Motion: ${avgMotion.toFixed(2)}\n` +
