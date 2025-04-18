@@ -41,11 +41,15 @@ server.tool("healthMetrics",
       return {
         content: [{ 
           type: "text", 
-          text: `Health Metrics for Device ${deviceId}:\n` +
-                `Steps: ${healthData.steps}\n` +
-                `Heart Rate: ${healthData.heartRate} bpm\n` +
-                `Sleep: ${healthData.sleep} hours\n` +
-                `Calories: ${healthData.calories} kcal`
+          text: `Health Metrics for Device ${deviceId} on ${date}:\n\n` +
+                Object.entries(healthData.data).map(([timestamp, metrics]: [string, any]) => {
+                  return `Time: ${timestamp}\n` +
+                         `Heart Rate: ${metrics.HR.toFixed(1)} bpm\n` +
+                         `Motion: ${metrics.motion.toFixed(2)}\n` +
+                         `Chest Movement Up: ${metrics.area_up.toFixed(2)}\n` +
+                         `Chest Movement Down: ${metrics.area_down.toFixed(2)}\n` +
+                         `Pressure Index: ${metrics.gcyy.toFixed(2)}\n`;
+                }).join('\n')
         }]
       }
     } catch (error) {
