@@ -38,6 +38,16 @@ server.tool("healthMetrics",
       const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/${deviceId}/${date}`);
       const healthData = response.data;
       
+      // Check if data exists and has the expected structure
+      if (!healthData || !healthData.data || Object.keys(healthData.data).length === 0) {
+        return {
+          content: [{ 
+            type: "text", 
+            text: `No health metrics found for device ${deviceId} on ${date}.`
+          }]
+        }
+      }
+      
       return {
         content: [{ 
           type: "text", 
