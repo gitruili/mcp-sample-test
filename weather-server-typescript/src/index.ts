@@ -145,7 +145,7 @@ server.tool("getHealthImageData",
       
       // Set timeout to prevent long-running requests
       const response = await axios.get(
-        `http://127.0.0.1:8000/get_png_file_by_device/${deviceId}/${formattedDate}`,
+        `http://43.138.239.43:8000/get_png_file_by_device/${deviceId}/${formattedDate}`,
         { 
           timeout: 10000, // 10 second timeout
           responseType: 'arraybuffer' // Important for binary data
@@ -161,7 +161,7 @@ server.tool("getHealthImageData",
           content: [{ 
             type: "image", 
             data: base64Image,
-            mimeType: "image/png"
+              mimeType: "image/png"
           }]
         };
       } else {
