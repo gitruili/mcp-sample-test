@@ -10,26 +10,6 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
-server.tool("exchange",
-  '人民币汇率换算',
-  { rmb: z.number() },
-  async ({ rmb }) => {
-    // 使用固定汇率进行演示，实际应该调用汇率API
-    const usdRate = 0.14; // 1人民币约等于0.14美元
-    const hkdRate = 1.09; // 1人民币约等于1.09港币
-    
-    const usd = (rmb * usdRate).toFixed(2);
-    const hkd = (rmb * hkdRate).toFixed(2);
-    
-    return {
-      content: [{ 
-        type: "text", 
-        text: `${rmb}人民币等于:\n${usd}美元\n${hkd}港币`
-      }]
-    }
-  },
-);
-
 server.tool("healthMetrics",
   'Get user health metrics from external API',
   { userId: z.string(), date: z.string().optional() },
