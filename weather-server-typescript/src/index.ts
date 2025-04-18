@@ -125,6 +125,69 @@ server.tool("healthMetrics",
   },
 );
 
+server.tool("getHealthImageData",
+  'Download health data visualization as PNG',
+  { deviceId: z.string(), date: z.string().optional() },
+  async ({ deviceId, date = '20250418' }) => {
+    try {
+      // Standardize date format to YYYYMMDD for API
+      let formattedDate = date;
+      
+      // Handle date formats like "2023-04-01"
+      if (date.includes('-')) {
+        formattedDate = date.replace(/-/g, '');
+      }
+      
+      // Format date for display (YYYY-MM-DD)
+      const displayDate = formattedDate.length === 8 
+        ? `${formattedDate.substring(0, 4)}-${formattedDate.substring(4, 6)}-${formattedDate.substring(6, 8)}`
+        : formattedDate;
+      
+      // Set timeout to prevent long-running requests
+      const response = await axios.get(
+        `http://127.0.0.1:8000/get_png_file_by_device/${deviceId}/${formattedDate}`,
+        { 
+          timeout: 10000, // 10 second timeout
+          responseType: 'arraybuffer' // Important for binary data
+        }
+      );
+      
+      // Check if we got a valid image response
+      if (response.headers['content-type'] === 'image/png') {
+        // Convert image data to base64
+        const base64Image = Buffer.from(response.data, 'binary').toString('base64');
+        
+        return {
+          content: [{ 
+            type: "image", 
+            data: base64Image,
+            mimeType: "image/png"
+          }]
+        };
+      } else {
+        return {
+          content: [{ 
+            type: "text", 
+            text: `Unable to retrieve health visualization for device ${deviceId} on ${displayDate}. The server did not return a valid image.`
+          }]
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching health image:", error);
+      const errorMessage = (error as any).code === 'ECONNABORTED' 
+        ? `Request timed out. The health data server is not responding.` 
+        : `Unable to retrieve health visualization for device ${deviceId}. Please try again later.`;
+      
+      return {
+        content: [{ 
+          type: "text", 
+          text: errorMessage
+        }]
+      };
+    }
+  },
+);
+
 const app = express();
 const sessions: Record<string, { transport: SSEServerTransport; response: express.Response }> = {}
 app.get("/sse", async (req: express.Request, res: express.Response) => {
