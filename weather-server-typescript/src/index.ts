@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import axios from 'axios';
+import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const server = new McpServer({
   name: "demo-sse",
@@ -38,7 +39,7 @@ server.tool("healthMetrics",
       let formattedDate = date;
       
       // Handle date formats like "2023-04-01"
-      if (date.includes('-')) {
+      if (typeof date === 'string' && date.includes('-')) {
         formattedDate = date.replace(/-/g, '');
       }
       
@@ -134,7 +135,7 @@ server.tool("getHealthImageData",
       let formattedDate = date;
       
       // Handle date formats like "2023-04-01"
-      if (date.includes('-')) {
+      if (typeof date === 'string' && date.includes('-')) {
         formattedDate = date.replace(/-/g, '');
       }
       
@@ -186,6 +187,66 @@ server.tool("getHealthImageData",
       };
     }
   },
+);
+
+server.resource(
+  "healthImage",
+  new ResourceTemplate("health://image/{deviceId}/{date?}", { list: undefined }),
+  {
+    parameters: {
+      deviceId: {
+        type: "string",
+        description: "Unique identifier for the health monitoring device"
+      },
+      date: {
+        type: "string", 
+        description: "Date for health data in YYYYMMDD format or YYYY-MM-DD format",
+        required: false
+      }
+    }
+  },
+  async (uri, params) => {
+    const { deviceId, date = "20250418" } = params;
+    try {
+      // Standardize date format to YYYYMMDD for API
+      let formattedDate = date;
+      
+      // Handle date formats like "2023-04-01"
+      if (typeof date === 'string' && date.includes('-')) {
+        formattedDate = date.replace(/-/g, '');
+      }
+      
+      // Set timeout to prevent long-running requests
+      const response = await axios.get(
+        `http://43.138.239.43:8000/get_png_file_by_device/${deviceId}/${formattedDate}`,
+        { 
+          timeout: 10000, // 10 second timeout
+          responseType: 'arraybuffer' // Important for binary data
+        }
+      );
+      
+      // Check if we got a valid image response
+      if (response.headers['content-type'] === 'image/png') {
+        // Return the image as a binary resource
+        return {
+          contents: [{
+            uri: uri.href,
+            mimeType: "image/png",
+            blob: Buffer.from(response.data).toString('base64')
+          }]
+        };
+      } else {
+        throw new Error(`Server did not return a valid image for device ${deviceId} on ${formattedDate}`);
+      }
+    } catch (error: unknown) {
+      console.error("Error fetching health image:", error);
+      const errorMessage = ((error as any).code === 'ECONNABORTED') 
+        ? `Request timed out. The health data server is not responding.` 
+        : `Unable to retrieve health visualization for device ${deviceId}. Please try again later.`;
+      
+      throw new Error(errorMessage);
+    }
+  }
 );
 
 const app = express();
