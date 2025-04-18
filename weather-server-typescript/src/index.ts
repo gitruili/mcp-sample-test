@@ -30,93 +30,30 @@ server.tool("exchange",
 );
 
 server.tool("healthMetrics",
-  'Get user health metrics from external API',
-  { userId: z.string(), date: z.string().optional() },
-  async ({ userId, date = '20250401' }) => {
+  'Get user health metrics from external API by device ID and date',
+  { deviceId: z.string().optional(), date: z.string().optional() },
+  async ({ deviceId = '9F2BC220625C29D', date = '20250401' }) => {
     try {
-      console.log(`Fetching health data for device ${userId} on date ${date}`);
-      // Using the specific health metrics API endpoint
-      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/${userId}/${date}`);
-      const data = response.data;
-      
-      console.log("API Response:", JSON.stringify(data, null, 2).substring(0, 500) + "...");
-      
-      let summaryText = `Health Metrics for Device ${userId} on ${date}:\n`;
-      
-      // Check if data exists and has the expected structure
-      if (data && typeof data === 'object') {
-        // For the 111 device ID, use a different approach - this appears to be a test device
-        if (userId === '111') {
-          // Return simulated data for test device
-          return {
-            content: [{ 
-              type: "text", 
-              text: `Health Metrics for Test Device ${userId} on ${date}:\n` +
-                    `Steps: 8,432\n` +
-                    `Heart Rate: 72 bpm (avg)\n` +
-                    `Sleep: 7.5 hours\n` +
-                    `Active Calories: 345 kcal\n` +
-                    `Note: This is simulated data for test device.`
-            }]
-          };
-        }
-        
-        // Check for data.data structure (time-series data)
-        if (data.data && typeof data.data === 'object') {
-          const timeKeys = Object.keys(data.data);
-          if (timeKeys.length > 0) {
-            const lastTimeKey = timeKeys[timeKeys.length - 1];
-            const lastReading = data.data[lastTimeKey];
-            
-            // Add metrics to summary
-            summaryText += `Last reading time: ${lastTimeKey}\n`;
-            summaryText += `Heart Rate: ${lastReading.HR || 'N/A'} bpm\n`;
-            summaryText += `Motion: ${lastReading.motion || 'N/A'}\n`;
-            
-            if (lastReading.gcyy) {
-              summaryText += `GCYY: ${lastReading.gcyy || 'N/A'}\n`;
-            }
-            
-            if (lastReading.area_up) {
-              summaryText += `Area Up: ${lastReading.area_up || 'N/A'}\n`;
-            }
-            
-            if (lastReading.area_down) {
-              summaryText += `Area Down: ${lastReading.area_down || 'N/A'}\n`;
-            }
-          } else {
-            summaryText += "No time-series data available for this device/date.";
-          }
-        } 
-        // Check for flat structure (non time-series)
-        else if (data.steps || data.heart_rate || data.HR || data.sleep || data.calories) {
-          summaryText += `Steps: ${data.steps || 'N/A'}\n`;
-          summaryText += `Heart Rate: ${data.heart_rate || data.HR || 'N/A'} bpm\n`;
-          summaryText += `Sleep: ${data.sleep || 'N/A'} ${data.sleep_unit || 'minutes'}\n`;
-          summaryText += `Calories: ${data.calories || data.active_calories || 'N/A'} kcal\n`;
-        } else {
-          summaryText += "Data received but no health metrics found in expected format.";
-          console.log("Data keys available:", Object.keys(data));
-        }
-      } else {
-        summaryText += "Data format not recognized or empty response.";
-      }
+      // Replace with your actual health metrics API endpoint
+      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/${deviceId}/${date}`);
+      const healthData = response.data;
       
       return {
         content: [{ 
           type: "text", 
-          text: summaryText
+          text: `Health Metrics for Device ${deviceId}:\n` +
+                `Steps: ${healthData.steps}\n` +
+                `Heart Rate: ${healthData.heartRate} bpm\n` +
+                `Sleep: ${healthData.sleep} hours\n` +
+                `Calories: ${healthData.calories} kcal`
         }]
       }
-    } catch (error: any) {
-      console.error("Error fetching health metrics:", error.message);
-      if (error.response) {
-        console.error("Response status:", error.response.status);
-      }
+    } catch (error) {
+      console.error("Error fetching health metrics:", error);
       return {
         content: [{ 
           type: "text", 
-          text: `Unable to retrieve health metrics for device ${userId}. Error: ${error.message}`
+          text: `Unable to retrieve health metrics for device ${deviceId}. Please try again later.`
         }]
       }
     }
