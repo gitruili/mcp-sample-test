@@ -16,7 +16,7 @@ const config = [
       name: 'demo-sse',
       type: 'sse',
       url: 'http://localhost:3001/sse',
-      isOpen: false
+      isOpen: true
     }
   ];
   export default config;
