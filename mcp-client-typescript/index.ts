@@ -327,7 +327,7 @@ export class MCPClient {
                                 
                                 // Make a direct call to GPT-4 Vision
                                 const visionResponse = await this.openai.chat.completions.create({
-                                    model: "gpt-4-vision-preview",
+                                    model: "gpt-4o-mini",
                                     messages: [
                                         {
                                             role: "user",
@@ -381,7 +381,7 @@ export class MCPClient {
                                 
                                 // Make a direct call to GPT-4 Vision
                                 const visionResponse = await this.openai.chat.completions.create({
-                                    model: "gpt-4-vision-preview",
+                                    model: "gpt-4o-mini",
                                     messages: [
                                         {
                                             role: "user",
