@@ -35,24 +35,6 @@ class MCPClient {
             apiKey: OPENAI_API_KEY
         });
     }
-    async listResources(serverName: string): Promise<any> {
-        const session = this.sessions.get(serverName);
-        if (!session) {
-          throw new Error(`Server ${serverName} not found`);
-        }
-        return await session.listResources();
-      }
-      
-    async getResource(serverName: string, resourceName: string, params: any): Promise<any> {
-        const session = this.sessions.get(serverName);
-        if (!session) {
-        throw new Error(`Server ${serverName} not found`);
-        }
-        return await session.getResource({
-        name: resourceName,
-        arguments: params
-        });
-    }
     async connectToServer(serverName: string): Promise<void> {
         const serverConfig = config.find(cfg => cfg.name === serverName) as ServerConfig;
         if (!serverConfig) {
@@ -122,31 +104,6 @@ class MCPClient {
                 content: query
             }
         ];
-        // Example query handling for health images
-        if (query.toLowerCase().includes('health') && query.toLowerCase().includes('image')) {
-            // Extract deviceId and date (with simple parsing logic)
-            const deviceIdMatch = query.match(/device\s+([A-Za-z0-9]+)/);
-            const dateMatch = query.match(/date\s+([0-9\-]+)/);
-            
-            const deviceId = deviceIdMatch ? deviceIdMatch[1] : "default_device";
-            const date = dateMatch ? dateMatch[1] : "20250418";
-            
-            try {
-            // Assuming 'health-server' is one of your connected servers
-            const imageResource = await this.getResource('health-server', 'healthImage', { 
-                deviceId, 
-                date 
-            });
-            
-            // Handle the image data (could save to file or display in UI)
-            console.log(`Retrieved health image for device ${deviceId}`);
-            // Save image or display it depending on your client's capabilities
-            
-            return `Successfully retrieved health visualization for device ${deviceId} on ${date}`;
-            } catch (error) {
-            return `Error retrieving health image: ${error.message}`;
-            }
-        }
         // 获取所有服务器的工具列表
         const availableTools: any[] = [];
         for (const [serverName, session] of this.sessions) {
