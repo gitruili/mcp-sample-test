@@ -30,12 +30,15 @@ server.tool("exchange",
 );
 
 server.tool("healthMetrics",
-  'Get user health metrics from external API by device ID and date',
-  { deviceId: z.string().optional(), date: z.string().optional() },
-  async ({ deviceId = '9F2BC220625C29D', date = '20250401' }) => {
+  'Get user health metrics from external API',
+  { userId: z.string(), date: z.string().optional() },
+  async ({ userId, date = '20250401' }) => {
     try {
-      // Replace with your actual health metrics API endpoint
-      const response = await axios.get(`http://43.138.239.43:8000/get_daily_data_by_device/${deviceId}/${date}`);
+      // Set timeout to prevent long-running requests
+      const response = await axios.get(
+        `http://43.138.239.43:8000/get_daily_data_by_device/${userId}/${date}`,
+        { timeout: 5000 } // 5 second timeout
+      );
       const healthData = response.data;
       
       // Check if data exists and has the expected structure
@@ -43,31 +46,66 @@ server.tool("healthMetrics",
         return {
           content: [{ 
             type: "text", 
-            text: `No health metrics found for device ${deviceId} on ${date}.`
+            text: `No health metrics found for user ${userId} on ${date}.`
           }]
         }
       }
       
+      // Calculate daily averages instead of showing all timestamps
+      const allMetrics = Object.values(healthData.data) as any[];
+      
+      if (allMetrics.length === 0) {
+        return {
+          content: [{ 
+            type: "text", 
+            text: `No health metrics found for user ${userId} on ${date}.`
+          }]
+        }
+      }
+      
+      // Calculate averages
+      const avgHeartRate = allMetrics.reduce((sum, m) => sum + m.HR, 0) / allMetrics.length;
+      const avgMotion = allMetrics.reduce((sum, m) => sum + m.motion, 0) / allMetrics.length;
+      const avgAreaUp = allMetrics.reduce((sum, m) => sum + m.area_up, 0) / allMetrics.length;
+      const avgAreaDown = allMetrics.reduce((sum, m) => sum + m.area_down, 0) / allMetrics.length;
+      const avgPressure = allMetrics.reduce((sum, m) => sum + m.gcyy, 0) / allMetrics.length;
+      
+      // Get min and max heart rates
+      const minHeartRate = Math.min(...allMetrics.map(m => m.HR));
+      const maxHeartRate = Math.max(...allMetrics.map(m => m.HR));
+      
+      // Limit to first 5 timestamps for sample data
+      const sampleEntries = Object.entries(healthData.data).slice(0, 5);
+      
       return {
         content: [{ 
           type: "text", 
-          text: `Health Metrics for Device ${deviceId} on ${date}:\n\n` +
-                Object.entries(healthData.data).map(([timestamp, metrics]: [string, any]) => {
+          text: `Health Summary for User ${userId} on ${date}:\n\n` +
+                `Daily Averages:\n` +
+                `- Average Heart Rate: ${avgHeartRate.toFixed(1)} bpm (Min: ${minHeartRate.toFixed(1)}, Max: ${maxHeartRate.toFixed(1)})\n` +
+                `- Average Motion: ${avgMotion.toFixed(2)}\n` +
+                `- Average Chest Movement Up: ${avgAreaUp.toFixed(2)}\n` +
+                `- Average Chest Movement Down: ${avgAreaDown.toFixed(2)}\n` +
+                `- Average Pressure Index: ${avgPressure.toFixed(2)}\n\n` +
+                `Total Measurements: ${allMetrics.length}\n\n` +
+                `Sample Data (First 5 Measurements):\n` +
+                sampleEntries.map(([timestamp, metrics]: [string, any]) => {
                   return `Time: ${timestamp}\n` +
                          `Heart Rate: ${metrics.HR.toFixed(1)} bpm\n` +
-                         `Motion: ${metrics.motion.toFixed(2)}\n` +
-                         `Chest Movement Up: ${metrics.area_up.toFixed(2)}\n` +
-                         `Chest Movement Down: ${metrics.area_down.toFixed(2)}\n` +
-                         `Pressure Index: ${metrics.gcyy.toFixed(2)}\n`;
+                         `Motion: ${metrics.motion.toFixed(2)}\n`;
                 }).join('\n')
         }]
       }
     } catch (error) {
       console.error("Error fetching health metrics:", error);
+      const errorMessage = (error as any).code === 'ECONNABORTED' 
+        ? `Request timed out. The health data server is not responding.` 
+        : `Unable to retrieve health metrics for user ${userId}. Please try again later.`;
+      
       return {
         content: [{ 
           type: "text", 
-          text: `Unable to retrieve health metrics for device ${deviceId}. Please try again later.`
+          text: errorMessage
         }]
       }
     }
