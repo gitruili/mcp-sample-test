@@ -7,9 +7,9 @@ const config = [
     //   isOpen: true
     // },
     // {
-    //   name: 'weather-stdio',
+    //   name: 'health-metrics-stdio',
     //   type: 'command',
-    //   command: 'node ~/code-open/cursor-toolkits/mcp/build/weather-stdio.js',
+    //   command: 'node ~/code-open/cursor-toolkits/mcp/build/health-metrics-stdio.js',
     //   isOpen: true
     // },
     {
