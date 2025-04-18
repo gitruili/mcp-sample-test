@@ -7,6 +7,7 @@ import { ChatCompletionMessageParam } from "openai/resources/chat/completions.js
 import { createInterface } from "readline";
 import { homedir } from 'os';
 import config from "./mcp-server-config.js";
+import fs from 'fs';
 
 // 初始化环境变量
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -312,7 +313,7 @@ export class MCPClient {
                     if (typeof toolResult.content === 'string') {
                         finalText.push(toolResult.content);
                     } else if (Array.isArray(toolResult.content)) {
-                        const contentDescription = toolResult.content.map((item: {
+                        const processedContent = await Promise.all(toolResult.content.map(async (item: {
                             type: string;
                             text?: string;
                             data?: string;
@@ -320,13 +321,38 @@ export class MCPClient {
                         }) => {
                             if (item.type === 'text') {
                                 return item.text || '';
-                            } else if (item.type === 'image') {
-                                return `[Image received: Health data visualization that cannot be displayed directly. The image shows health metrics for the requested device and date.]`;
+                            } else if (item.type === 'image' && item.data) {
+                                // Save base64 image to a file
+                                const imagePath = saveBase64ImageToFile(item.data, 'health_data.png');
+                                
+                                // Make a direct call to GPT-4 Vision
+                                const visionResponse = await this.openai.chat.completions.create({
+                                    model: "gpt-4-vision-preview",
+                                    messages: [
+                                        {
+                                            role: "user",
+                                            content: [
+                                                { type: "text", text: "Interpret this health data visualization in detail:" },
+                                                {
+                                                    type: "image_url",
+                                                    image_url: {
+                                                        url: `data:${item.mimeType};base64,${item.data}`,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    max_tokens: 1000,
+                                });
+                                
+                                // Use the interpretation in your response
+                                const interpretation = visionResponse.choices[0].message.content;
+                                return `[Image Analysis: ${interpretation}]`;
                             } else {
                                 return `[Content of type ${item.type}]`;
                             }
-                        }).join('\n');
-                        finalText.push(contentDescription);
+                        }));
+                        finalText.push(processedContent.join('\n'));
                     }
                     
                     // Continue with the conversation
@@ -341,7 +367,7 @@ export class MCPClient {
                     if (typeof toolResult.content === 'string') {
                         toolResultContent = toolResult.content;
                     } else if (Array.isArray(toolResult.content)) {
-                        toolResultContent = toolResult.content.map((item: {
+                        const processedResults = await Promise.all(toolResult.content.map(async (item: {
                             type: string;
                             text?: string;
                             data?: string;
@@ -349,12 +375,38 @@ export class MCPClient {
                         }) => {
                             if (item.type === 'text') {
                                 return item.text || '';
-                            } else if (item.type === 'image') {
-                                return `[Image received: This is a health data visualization that cannot be displayed directly in text. The image shows health metrics visualization for the requested device and date.]`;
+                            } else if (item.type === 'image' && item.data) {
+                                // Save base64 image to a file
+                                const imagePath = saveBase64ImageToFile(item.data, 'health_data.png');
+                                
+                                // Make a direct call to GPT-4 Vision
+                                const visionResponse = await this.openai.chat.completions.create({
+                                    model: "gpt-4-vision-preview",
+                                    messages: [
+                                        {
+                                            role: "user",
+                                            content: [
+                                                { type: "text", text: "Interpret this health data visualization in detail:" },
+                                                {
+                                                    type: "image_url",
+                                                    image_url: {
+                                                        url: `data:${item.mimeType};base64,${item.data}`,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    max_tokens: 1000,
+                                });
+                                
+                                // Use the interpretation in your response
+                                const interpretation = visionResponse.choices[0].message.content;
+                                return `[Image Analysis: ${interpretation}]`;
                             } else {
                                 return `[Content of type ${item.type}]`;
                             }
-                        }).join('\n');
+                        }));
+                        toolResultContent = processedResults.join('\n');
                     }
                     
                     messages.push({
@@ -449,4 +501,11 @@ async function main() {
 }
 
 // 运行主函数
-main().catch(console.error);﻿
+main().catch(console.error);
+
+function saveBase64ImageToFile(base64Data: string, filename: string): string {
+    const imageData = Buffer.from(base64Data, 'base64');
+    const imagePath = `/tmp/${filename}`;
+    fs.writeFileSync(imagePath, imageData);
+    return imagePath;
+}
