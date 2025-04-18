@@ -14,7 +14,12 @@ if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY environment variable is required");
 }
 interface MCPToolResult {
-    content: string;
+    content: string | Array<{
+        type: string;
+        text?: string;
+        data?: string;
+        mimeType?: string;
+    }>;
 }
 interface MCPResourceResult {
     contents: Array<{
@@ -296,22 +301,69 @@ export class MCPClient {
                     }
                     
                     const toolResult = result as unknown as MCPToolResult;
-                    console.log(toolResult.content);
-                    finalText.push(toolResult.content);
+                    // Log the content appropriately based on its type
+                    if (typeof toolResult.content === 'string') {
+                        console.log(toolResult.content);
+                    } else if (Array.isArray(toolResult.content)) {
+                        console.log(JSON.stringify(toolResult.content));
+                    }
                     
-                    // 继续与工具结果的对话
+                    // Add the content to finalText based on its type
+                    if (typeof toolResult.content === 'string') {
+                        finalText.push(toolResult.content);
+                    } else if (Array.isArray(toolResult.content)) {
+                        const contentDescription = toolResult.content.map((item: {
+                            type: string;
+                            text?: string;
+                            data?: string;
+                            mimeType?: string;
+                        }) => {
+                            if (item.type === 'text') {
+                                return item.text || '';
+                            } else if (item.type === 'image') {
+                                return `[Image received: Health data visualization that cannot be displayed directly. The image shows health metrics for the requested device and date.]`;
+                            } else {
+                                return `[Content of type ${item.type}]`;
+                            }
+                        }).join('\n');
+                        finalText.push(contentDescription);
+                    }
+                    
+                    // Continue with the conversation
                     messages.push({
                         role: "assistant",
                         content: "",
                         tool_calls: [toolCall]
                     });
+                    
+                    // Create a text-only version of the content for the API
+                    let toolResultContent = '';
+                    if (typeof toolResult.content === 'string') {
+                        toolResultContent = toolResult.content;
+                    } else if (Array.isArray(toolResult.content)) {
+                        toolResultContent = toolResult.content.map((item: {
+                            type: string;
+                            text?: string;
+                            data?: string;
+                            mimeType?: string;
+                        }) => {
+                            if (item.type === 'text') {
+                                return item.text || '';
+                            } else if (item.type === 'image') {
+                                return `[Image received: This is a health data visualization that cannot be displayed directly in text. The image shows health metrics visualization for the requested device and date.]`;
+                            } else {
+                                return `[Content of type ${item.type}]`;
+                            }
+                        }).join('\n');
+                    }
+                    
                     messages.push({
                         role: "tool",
                         tool_call_id: toolCall.id,
-                        content: toolResult.content
+                        content: toolResultContent
                     });
                     
-                    // 获取下一个响应
+                    // Get the next response
                     const nextCompletion = await this.openai.chat.completions.create({
                         model: "gpt-4o-mini",
                         messages,
