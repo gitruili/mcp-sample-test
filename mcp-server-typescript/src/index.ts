@@ -317,19 +317,45 @@ server.resource(
 
 server.resource(
   "healthInterpretation",
-  new ResourceTemplate("health://interpretation", { list: undefined }),
-  {
-    parameters: {}
-  },
-  async (uri) => {
-    try {
+  new ResourceTemplate("health://interpretation/{id}", { 
+    list: async () => {
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: "text/plain",
-          blob: Buffer.from(cittaDoc).toString('base64')
-        }]
+        resources: [
+          {
+            name: "cittaDoc",
+            uri: "health://interpretation/citta",
+            description: "Citta Health Interpretation Guide",
+            mimeType: "text/plain"
+          }
+        ]
       };
+    }
+  }),
+  {
+    parameters: {
+      id: {
+        type: "string",
+        description: "Identifier for the health interpretation document",
+        required: false
+      }
+    }
+  },
+  async (uri, params) => {
+    try {
+      // The id parameter can be used to potentially serve different interpretation docs in the future
+      const { id = "citta" } = params;
+      
+      if (id === "citta") {
+        return {
+          contents: [{
+            uri: uri.href,
+            mimeType: "text/plain",
+            blob: Buffer.from(cittaDoc).toString('base64')
+          }]
+        };
+      } else {
+        throw new Error(`Interpretation document '${id}' not found`);
+      }
     } catch (error: unknown) {
       console.error("Error providing health interpretation doc:", error);
       throw new Error("Unable to provide health interpretation documentation.");
