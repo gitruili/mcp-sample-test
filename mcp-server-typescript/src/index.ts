@@ -6,11 +6,16 @@ import axios from 'axios';
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 const server = new McpServer({
   name: "demo-sse",
   version: "1.0.0"
 });
+
+// Get directory path for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load Citta documentation for interpretations
 const cittaDoc = fs.readFileSync(path.join(__dirname, '../citta.txt'), 'utf-8');
