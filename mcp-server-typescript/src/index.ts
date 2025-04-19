@@ -4,11 +4,16 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import axios from 'axios';
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import * as fs from 'fs';
+import * as path from 'path';
 
 const server = new McpServer({
   name: "demo-sse",
   version: "1.0.0"
 });
+
+// Load Citta documentation for interpretations
+const cittaDoc = fs.readFileSync(path.join(__dirname, '../citta.txt'), 'utf-8');
 
 server.tool("healthMetrics",
   'Get user health metrics from external API',
@@ -104,6 +109,82 @@ server.tool("healthMetrics",
       }
     }
   },
+);
+
+server.tool("interpretHealthMetrics",
+  'Interpret health metrics based on Citta documentation',
+  { 
+    heartRate: z.number(), 
+    citta: z.number(), 
+    motion: z.number() 
+  },
+  async ({ heartRate, citta, motion }) => {
+    try {
+      // Determine state based on Citta documentation
+      let state = "";
+      let description = "";
+      
+      // Motion threshold
+      const isHighMotion = motion > 5;
+      
+      // Heart rate and Citta thresholds (these are assumptions; adjust as needed)
+      const isHighHeartRate = heartRate > 80;
+      const isHighCitta = citta > 50;
+      
+      // State determination based on Citta documentation
+      if (isHighCitta && !isHighHeartRate && !isHighMotion) {
+        state = "1";
+        description = "脑力快乐，喜悦、心流状态";
+      } else if (isHighCitta && isHighHeartRate && isHighMotion) {
+        state = "2";
+        description = "活动快乐";
+      } else if (!isHighCitta && !isHighHeartRate && !isHighMotion) {
+        state = "3";
+        description = "睡眠或者疾病状态";
+      } else if (!isHighCitta && !isHighHeartRate && isHighMotion) {
+        state = "4";
+        description = "焦虑、治疗干预中";
+      } else if (!isHighCitta && isHighHeartRate && isHighMotion) {
+        state = "5";
+        description = "运动锻炼状态";
+      } else if (isHighCitta && !isHighHeartRate && isHighMotion) {
+        state = "6";
+        description = "体动快乐，优秀运动员状态";
+      } else if (!isHighCitta && isHighHeartRate && !isHighMotion) {
+        state = "7";
+        description = "焦虑、过度压力、或健康干预过程中";
+      } else if (isHighCitta && isHighHeartRate && !isHighMotion) {
+        state = "8";
+        description = "激动开心状态";
+      }
+      
+      // Additional context about Citta
+      const cittaExplanation = "心绪（Citta）基于心率变异性（HRV）参数，定量描述身心状态和情绪质量。心绪值越高，表示身心状态越健康，通常与愉悦、幸福和快乐相关。";
+      const motionExplanation = motion > 5 ? "体动>5：大部分是清醒状态" : "体动0-5：睡眠或者静息";
+      
+      return {
+        content: [{ 
+          type: "text", 
+          text: `健康状态解读：\n\n` +
+                `当前状态: 状态${state} - ${description}\n\n` +
+                `指标详情:\n` +
+                `- 心率: ${heartRate} bpm\n` +
+                `- 心绪值: ${citta}\n` +
+                `- 体动值: ${motion} (${motionExplanation})\n\n` +
+                `${cittaExplanation}\n\n` +
+                `注意：睡眠与静息心绪与清醒心绪不具有可比性。`
+        }]
+      };
+    } catch (error) {
+      console.error("Error interpreting health metrics:", error);
+      return {
+        content: [{ 
+          type: "text", 
+          text: `无法解读健康指标。请检查输入值是否有效。`
+        }]
+      };
+    }
+  }
 );
 
 server.tool("getHealthImageData",
@@ -225,6 +306,28 @@ server.resource(
         : `Unable to retrieve health visualization for device ${deviceId}. Please try again later.`;
       
       throw new Error(errorMessage);
+    }
+  }
+);
+
+server.resource(
+  "healthInterpretation",
+  new ResourceTemplate("health://interpretation", { list: undefined }),
+  {
+    parameters: {}
+  },
+  async (uri) => {
+    try {
+      return {
+        contents: [{
+          uri: uri.href,
+          mimeType: "text/plain",
+          blob: Buffer.from(cittaDoc).toString('base64')
+        }]
+      };
+    } catch (error: unknown) {
+      console.error("Error providing health interpretation doc:", error);
+      throw new Error("Unable to provide health interpretation documentation.");
     }
   }
 );
