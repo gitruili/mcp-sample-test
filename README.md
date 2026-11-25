@@ -1,3 +1,5 @@
+**English** | [日本語](./README.ja.md)
+
 # Quickstart Resources
 
 A repository of servers and clients from the following Model Context Protocol tutorials:
