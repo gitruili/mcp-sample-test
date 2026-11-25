@@ -359,4 +359,6 @@ app.post("/messages", async (req: express.Request, res: express.Response) => {
   await session.transport.handlePostMessage(req, res);
 });
 
-app.listen(3001);
+app.listen(3001, () => {
+  console.log("MCP server listening on http://localhost:3001/sse");
+});
